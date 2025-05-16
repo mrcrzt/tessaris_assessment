@@ -1,35 +1,33 @@
-
 from flask import Flask, request, jsonify
 import openai
 import uuid
 import json
 import os
 from utils import get_next_question, save_session_log
-
-#Tessaris tooolchain
-#dynamic assessment bot
+from flask_cors import CORS
 
 app = Flask(__name__)
+
+CORS(app, resources={r"/*": {"origins": "*"}}, methods=["GET", "POST", "OPTIONS"], allow_headers=["Content-Type", "Accept"])
+
 SESSIONS = {}
 
-@app.route("/start", methods=["POSTs"])
+@app.route("/start", methods=["POST"])
 def start():
-
-
-
-    # Check for OPENAI_API_KEY in environment variables and exit if not found
+    # Check for OPENAI_API_KEY in environment variables
     open_ai_api_key = os.getenv('OPENAI_API_KEY')
     if not open_ai_api_key:
         raise EnvironmentError("Missing environment variable: 'OPENAI_API_KEY'")
 
-
     session_id = str(uuid.uuid4())
     SESSIONS[session_id] = {
-        "answers": [],
         "log": []
     }
 
-    question = get_next_question([], [])
+    # Get first question
+    question = get_next_question([])
+    SESSIONS[session_id]["log"].append({"question": question})
+
     return jsonify({"session_id": session_id, "question": question})
 
 
@@ -42,10 +40,23 @@ def next_question():
     if session_id not in SESSIONS:
         return jsonify({"error": "Invalid session_id"}), 400
 
-    SESSIONS[session_id]["answers"].append(answer)
-    SESSIONS[session_id]["log"].append({"answer": answer})
+    session = SESSIONS[session_id]
+    log = session["log"]
 
-    question = get_next_question(SESSIONS[session_id]["answers"], SESSIONS[session_id]["log"])
+    # Save user's answer to the previous question
+    if log and "answer" not in log[-1]:
+        log[-1]["answer"] = answer
+    else:
+        log.append({"answer": answer})
+
+    # Limit to 10 questions
+    if len(log) >= 10:
+        return jsonify({"message": "Assessment complete. Thank you!", "complete": True})
+
+    # Get next question
+    question = get_next_question(log)
+    log.append({"question": question})
+
     return jsonify({"question": question})
 
 
@@ -62,4 +73,4 @@ def submit():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, ssl_context=("cert.pem", "key.pem"))

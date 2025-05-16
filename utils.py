@@ -25,21 +25,29 @@ Prioritize identifying bottlenecks or inefficiencies in:
 Keep a professional tone, and avoid repeating earlier questions.
 """
 
-def get_next_question(answers, logs):
+def get_next_question(logs):
+    if len(logs) >= 10:
+        return "Thank you. The assessment is complete."
+
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    
-    for i, answer in enumerate(answers):
-        messages.append({"role": "user", "content": f"My answer to question {i+1} is: {answer}"})
-    
+
+    # Add previous Q&A pairs
+    for i, entry in enumerate(logs):
+        q = entry.get("question", f"Question {i+1}")
+        a = entry.get("answer", "")
+        messages.append({"role": "assistant", "content": q})
+        messages.append({"role": "user", "content": a})
+
+    # Final request to generate next question
     messages.append({"role": "user", "content": "What is the next question I should answer?"})
-    
+
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=messages,
         temperature=0.7,
         max_tokens=150
     )
-    
+
     return response.choices[0].message.content.strip()
 
 def save_session_log(session_id, session_data):
