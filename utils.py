@@ -1,9 +1,13 @@
 
 import openai
 import json
+import os
 from datetime import datetime
 
-openai.api_key = "YOUR_OPENAI_API_KEY"
+openai.api_key =  os.getenv('OPENAI_API_KEY')
+if not openai.api_key :
+        raise EnvironmentError("Missing environment variable: 'OPENAI_API_KEY'")
+
 
 SYSTEM_PROMPT = """
 You are an expert AI consultant conducting a step-by-step assessment to evaluate a company's preparedness and pain points related to AI, automation, data handling, and knowledge management. 
